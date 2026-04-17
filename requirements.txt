@@ -1,0 +1,9 @@
+streamlit
+pandas
+openpyxl
+scikit-learn
+matplotlib
+seaborn
+python-multipart
+jinja2
+python-dotenv
