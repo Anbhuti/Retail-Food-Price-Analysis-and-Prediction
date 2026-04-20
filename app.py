@@ -98,7 +98,7 @@ st.markdown(f"""
 with st.sidebar:
     st.markdown(f"<div class='logo-text'>Insight Flow</div>", unsafe_allow_html=True)
     st.markdown(f"<p style='color: {t['muted']}; font-size: 0.85rem;'>Universal Insights Platform</p>", unsafe_allow_html=True)
-    st.markdown("[Tableau Dashboard](https://public.tableau.com/shared/MX2F9Z9MT?:display_count=n&:origin=viz_share_link)", unsafe_allow_html=False)
+    st.markdown("[Tableau Dashboard](https://public.tableau.com/views/RetailFoodPriceAnalysisPredictionDashboard/Dashboard1?:language=en-GB&publish=yes&:sid=&:redirect=auth&:display_count=n&:origin=viz_share_link)", unsafe_allow_html=False)
     
     st.write("---")
     
@@ -161,7 +161,7 @@ if st.session_state.master_df is not None:
     
     # Tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🏠 Overview", "📊 Advanced EDA", "📈 Dashboard", "🤖 AutoML", "🔮 Predictions"
+        "🏠 Overview", "📊 Advanced EDA", "📈 Dashboard", "🤖 Model Training", "🔮 Predictions"
     ])
 
     # --- Tab 1: Overview ---
@@ -181,22 +181,66 @@ if st.session_state.master_df is not None:
 
     # --- Tab 2: Advanced EDA ---
     with tab2:
-        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        st.subheader("Automated Visual Intelligence")
-        
-        with st.spinner("Analyzing distributions..."):
-            visuals = ml_utils.get_visualizations(df, theme=st.session_state.theme)
-            
-            if 'histograms' in visuals:
-                st.image(base64.b64decode(visuals['histograms']), caption="Numeric Distributions", use_container_width=True)
-            
-            ev_col1, ev_col2 = st.columns(2)
-            with ev_col1:
-                if 'heatmap' in visuals:
-                    st.image(base64.b64decode(visuals['heatmap']), caption="Correlation Heatmap", use_container_width=True)
-            with ev_col2:
-                if 'boxplot' in visuals:
-                    st.image(base64.b64decode(visuals['boxplot']), caption="Outlier Detection (Boxplots)", use_container_width=True)
+       st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+       st.subheader("Automated Visual Intelligence")
+
+    # 👉 User se selection
+    plot_option = st.selectbox(
+        "Select Visualization",
+        ["Histogram", "Correlation Heatmap", "Boxplot"]
+    )
+
+    with st.spinner("Generating visualization..."):
+
+        if plot_option == "Histogram":
+            column = st.selectbox("Select numeric column", df.select_dtypes(include='number').columns)
+
+            if column:
+                import matplotlib.pyplot as plt
+                import seaborn as sns
+                import numpy as np
+
+                data = df[column].dropna()
+                mean_val = np.mean(data)
+                median_val = np.median(data)
+
+                fig, ax = plt.subplots()
+                sns.histplot(data, kde=True, ax=ax)
+
+                ax.axvline(mean_val, linestyle='--', label=f"Mean: {mean_val:.2f}")
+                ax.axvline(median_val, linestyle='-', label=f"Median: {median_val:.2f}")
+
+                ax.legend()
+                ax.set_title(f"Histogram of {column}")
+
+                st.pyplot(fig)
+
+        elif plot_option == "Correlation Heatmap":
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+
+            corr = df.select_dtypes(include='number').corr()
+
+            fig, ax = plt.subplots()
+            sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+
+            ax.set_title("Correlation Heatmap")
+            st.pyplot(fig)
+
+        elif plot_option == "Boxplot":
+            column = st.selectbox("Select column for boxplot", df.select_dtypes(include='number').columns)
+
+            if column:
+                import matplotlib.pyplot as plt
+                import seaborn as sns
+
+                fig, ax = plt.subplots()
+                sns.boxplot(y=df[column], ax=ax)
+
+                ax.set_title(f"Boxplot of {column}")
+                st.pyplot(fig)
+
+            st.markdown("</div>", unsafe_allow_html=True)
         
         # Trend Analysis
         if stats['cols_info']['datetime']:
@@ -243,6 +287,8 @@ if st.session_state.master_df is not None:
         
         # Report Export
         st.write("---")
+        visuals = "This section shows all charts"
+        st.write(visuals)
         if st.button("📄 Generate Comprehensive Report", use_container_width=True):
             report_html = ml_utils.generate_html_report(df, stats, visuals, st.session_state.ml_results)
             st.download_button(
@@ -257,7 +303,7 @@ if st.session_state.master_df is not None:
     # --- Tab 4: AutoML ---
     with tab4:
         st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        st.subheader("AutoML Benchmarking Engine")
+        st.subheader("Model training")
         
         bench_col1, bench_col2 = st.columns([1, 2])
         with bench_col1:
@@ -272,7 +318,7 @@ if st.session_state.master_df is not None:
             target = st.selectbox("Target Variable (Y)", target_options, index=default_ix)
             features = st.multiselect("Predictor Features (X)", [c for c in stats['columns'] if c != target], default=[c for c in stats['columns'] if c != target][:5])
         
-        if st.button("🚀 Run AI Benchmarking"):
+        if st.button("🚀 Run Training"):
             with st.spinner("Training models and analyzing performance..."):
                 results = ml_utils.perform_prediction(df, target, theme=st.session_state.theme, feature_cols=features)
                 results['target_name'] = target # Track which target was used for training
@@ -300,7 +346,7 @@ if st.session_state.master_df is not None:
     # --- Tab 5: Predictions ---
     with tab5:
         if st.session_state.ml_results is None:
-            st.warning("Please run AutoML benchmarking first to initialize models.")
+            st.warning("Please run Model Training first to initialize models.")
         elif st.session_state.ml_results.get('target_name') != target:
             st.error(f"⚠️ Target mismatch! Model was trained to predict '{st.session_state.ml_results.get('target_name')}', but you have now selected '{target}'. Please rerun the AutoML benchmark.")
         else:
