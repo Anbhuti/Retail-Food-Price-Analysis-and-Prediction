@@ -20,6 +20,7 @@ if 'theme' not in st.session_state: st.session_state.theme = 'dark'
 if 'master_df' not in st.session_state: st.session_state.master_df = None
 if 'df' not in st.session_state: st.session_state.df = None
 if 'ml_results' not in st.session_state: st.session_state.ml_results = None
+if 'visuals' not in st.session_state: st.session_state.visuals = None
 
 # --- UI Definitions ---
 themes = {
@@ -98,7 +99,7 @@ st.markdown(f"""
 with st.sidebar:
     st.markdown(f"<div class='logo-text'>Insight Flow</div>", unsafe_allow_html=True)
     st.markdown(f"<p style='color: {t['muted']}; font-size: 0.85rem;'>Universal Insights Platform</p>", unsafe_allow_html=True)
-    st.markdown("[Tableau Dashboard](https://public.tableau.com/views/RetailFoodPriceAnalysisPredictionDashboard/Dashboard1?:language=en-GB&publish=yes&:sid=&:redirect=auth&:display_count=n&:origin=viz_share_link)", unsafe_allow_html=False)
+    st.markdown("[Tableau Dashboard](https://public.tableau.com/shared/MX2F9Z9MT?:display_count=n&:origin=viz_share_link)", unsafe_allow_html=False)
     
     st.write("---")
     
@@ -161,7 +162,7 @@ if st.session_state.master_df is not None:
     
     # Tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🏠 Overview", "📊 Advanced EDA", "📈 Dashboard", "🤖 Model Training", "🔮 Predictions"
+        "🏠 Overview", "📊 Advanced EDA", "🤖 Model Training", "🔮 Predictions", "📈 Dashboard"
     ])
 
     # --- Tab 1: Overview ---
@@ -179,71 +180,78 @@ if st.session_state.master_df is not None:
         st.dataframe(df.head(20), use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
+    
     # --- Tab 2: Advanced EDA ---
     with tab2:
-       st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-       st.subheader("Automated Visual Intelligence")
+      st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+      st.subheader("📊Advance EDA ")
 
-    # 👉 User se selection
-    plot_option = st.selectbox(
-        "Select Visualization",
-        ["Histogram", "Correlation Heatmap", "Boxplot"]
-    )
+      numeric_cols = stats['cols_info']['numeric']
+      categorical_cols = stats['cols_info']['categorical']
 
-    with st.spinner("Generating visualization..."):
+    # --- Histogram ---
+      st.write("### 📈 Distribution Plot (Histogram)")
+      hist_col = st.selectbox("Select Feature for Histogram", numeric_cols, key="hist")
+    
+      if hist_col:
+        fig, ax = plt.subplots()
+        sns.histplot(df[hist_col], kde=True, ax=ax)
+        ax.set_title(f"Distribution of {hist_col}")
+        st.pyplot(fig)
 
-        if plot_option == "Histogram":
-            column = st.selectbox("Select numeric column", df.select_dtypes(include='number').columns)
+      st.write("---")
 
-            if column:
-                import matplotlib.pyplot as plt
-                import seaborn as sns
-                import numpy as np
+    # --- Boxplot ---
+      st.write("### 📦 Outlier Detection (Boxplot)")
+      box_col = st.selectbox("Select Feature for Boxplot", numeric_cols, key="box")
+    
+      if box_col:
+        fig, ax = plt.subplots()
+        sns.boxplot(y=df[box_col], ax=ax)
+        ax.set_title(f"Boxplot of {box_col}")
+        st.pyplot(fig)   # ✅ yeh andar hona chahiye
 
-                data = df[column].dropna()
-                mean_val = np.mean(data)
-                median_val = np.median(data)
+      st.write("---")
 
-                fig, ax = plt.subplots()
-                sns.histplot(data, kde=True, ax=ax)
+    # --- Scatter Plot ---
+      st.write("### 🔵 Relationship (Scatter Plot)")
+      col1, col2 = st.columns(2)
+      with col1:
+        x_col = st.selectbox("X-axis", numeric_cols, key="scatter_x")
+      with col2:
+        y_col = st.selectbox("Y-axis", numeric_cols, key="scatter_y")
 
-                ax.axvline(mean_val, linestyle='--', label=f"Mean: {mean_val:.2f}")
-                ax.axvline(median_val, linestyle='-', label=f"Median: {median_val:.2f}")
+      if x_col and y_col:
+        fig, ax = plt.subplots()
+        sns.scatterplot(x=df[x_col], y=df[y_col], ax=ax)
+        ax.set_title(f"{x_col} vs {y_col}")
+        st.pyplot(fig)
 
-                ax.legend()
-                ax.set_title(f"Histogram of {column}")
+      st.write("---")
 
-                st.pyplot(fig)
+    # --- Bar Chart ---
+      st.write("### 📊 Categorical Analysis")
+      if categorical_cols:
+        cat_col = st.selectbox("Select Categorical Feature", categorical_cols, key="cat")
+        st.bar_chart(df[cat_col].value_counts())
+      else:
+        st.info("No categorical columns available")
 
-        elif plot_option == "Correlation Heatmap":
-            import matplotlib.pyplot as plt
-            import seaborn as sns
+      st.write("---")
 
-            corr = df.select_dtypes(include='number').corr()
+    # --- Heatmap ---
+      st.write("### 🔥 Correlation Heatmap")
+      if len(numeric_cols) > 1:
+        fig, ax = plt.subplots(figsize=(8,5))
+        sns.heatmap(df[numeric_cols].corr(), annot=True, cmap="viridis", ax=ax)
+        st.pyplot(fig)
+      else:
+        st.info("Need at least 2 numeric columns")
 
-            fig, ax = plt.subplots()
-            sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+      st.markdown("</div>", unsafe_allow_html=True)
 
-            ax.set_title("Correlation Heatmap")
-            st.pyplot(fig)
-
-        elif plot_option == "Boxplot":
-            column = st.selectbox("Select column for boxplot", df.select_dtypes(include='number').columns)
-
-            if column:
-                import matplotlib.pyplot as plt
-                import seaborn as sns
-
-                fig, ax = plt.subplots()
-                sns.boxplot(y=df[column], ax=ax)
-
-                ax.set_title(f"Boxplot of {column}")
-                st.pyplot(fig)
-
-            st.markdown("</div>", unsafe_allow_html=True)
-        
         # Trend Analysis
-        if stats['cols_info']['datetime']:
+      if stats['cols_info']['datetime']:
             st.write("---")
             st.subheader("📅 Time-Series Trend Analysis")
             date_col = st.selectbox("Select Date Column", stats['cols_info']['datetime'])
@@ -252,58 +260,14 @@ if st.session_state.master_df is not None:
             trend_df = df.sort_values(date_col).groupby(date_col)[val_col].mean().reset_index()
             st.line_chart(trend_df.set_index(date_col))
 
-        st.markdown("</div>", unsafe_allow_html=True)
+      st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Tab 3: Dashboard ---
+    
+
+    # --- Tab 3: AutoML ---
     with tab3:
         st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        st.subheader("Interactive KPI Intelligence")
-        
-        kpi_cols = st.columns(min(len(stats['cols_info']['numeric']), 4) if stats['cols_info']['numeric'] else 1)
-        if stats['cols_info']['numeric']:
-            for i, col_name in enumerate(stats['cols_info']['numeric'][:4]):
-                val = df[col_name].mean()
-                kpi_cols[i % 4].markdown(f"""
-                    <div class='kpi-card' style='border: 1px solid {t['border']}; padding: 10px; border-radius: 12px;'>
-                        <div class='kpi-label'>Avg {col_name}</div>
-                        <div class='kpi-value'>{val:,.2f}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-        
-        st.write("---")
-        d_col1, d_col2 = st.columns(2)
-        with d_col1:
-            if stats['cols_info']['categorical']:
-                cat_col = st.selectbox("Categorical Breakdown", stats['cols_info']['categorical'], key='dash_cat')
-                st.bar_chart(df[cat_col].value_counts())
-            else:
-                st.info("No categorical columns detected.")
-        with d_col2:
-            if stats['cols_info']['numeric']:
-                num_col = st.selectbox("Numeric Density Breakdown", stats['cols_info']['numeric'], key='dash_num')
-                st.area_chart(df[num_col].value_counts().sort_index())
-            else:
-                st.info("No numeric columns detected.")
-        
-        # Report Export
-        st.write("---")
-        visuals = "This section shows all charts"
-        st.write(visuals)
-        if st.button("📄 Generate Comprehensive Report", use_container_width=True):
-            report_html = ml_utils.generate_html_report(df, stats, visuals, st.session_state.ml_results)
-            st.download_button(
-                label="📥 Download Data Report (HTML)",
-                data=report_html,
-                file_name=f"Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
-                mime="text/html",
-                use_container_width=True
-            )
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # --- Tab 4: AutoML ---
-    with tab4:
-        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        st.subheader("Model training")
+        st.subheader("Model Training")
         
         bench_col1, bench_col2 = st.columns([1, 2])
         with bench_col1:
@@ -343,15 +307,15 @@ if st.session_state.master_df is not None:
         
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Tab 5: Predictions ---
-    with tab5:
+    # --- Tab 4: Predictions ---
+    with tab4:
         if st.session_state.ml_results is None:
-            st.warning("Please run Model Training first to initialize models.")
+            st.warning("Please run AutoML benchmarking first to initialize models.")
         elif st.session_state.ml_results.get('target_name') != target:
             st.error(f"⚠️ Target mismatch! Model was trained to predict '{st.session_state.ml_results.get('target_name')}', but you have now selected '{target}'. Please rerun the AutoML benchmark.")
         else:
             st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-            st.subheader("🔮 Instant AI Prediction")
+            st.subheader("🔮 Prediction")
             
             res = st.session_state.ml_results
             meta = res['metadata']
@@ -411,19 +375,54 @@ if st.session_state.master_df is not None:
                 """, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-else:
-    # Empty State
-    st.markdown(f"""
-    <div class='glass-card' style='text-align: center; padding: 5rem 2rem; margin-top: 5rem;'>
-        <img src='https://img.icons8.com/isometric/100/data-transfer.png' style='margin-bottom: 2rem;' />
-        <h1 style='margin-bottom: 1rem; color: {t['text']} !important;'>Welcome to Data Intelligence</h1>
-        <p style='color: {t['muted']}; max-width: 600px; margin: 0 auto 2rem;'>
-            Upload your CSV or Excel dataset in the sidebar to unlock automated insights, 
-            dashboard visualizations, and machine learning predictions.
-        </p>
-        <div style='color: {t['accent']}; font-weight: 600;'>← Start by uploading a file or loading sample data</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Footer
-st.markdown(f"<div style='text-align: center; color: {t['muted']}; font-size: 0.8rem; margin-top: 4rem; padding-bottom: 2rem;'>Insight Flow v5.5 | Professional Data Science Suite | </div>", unsafe_allow_html=True)
+        # --- Tab 5: Dashboard ---
+        with tab5:
+            st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+            st.subheader("Interactive KPI Intelligence")
+            
+            kpi_cols = st.columns(min(len(stats['cols_info']['numeric']), 4) if stats['cols_info']['numeric'] else 1)
+            if stats['cols_info']['numeric']:
+                for i, col_name in enumerate(stats['cols_info']['numeric'][:4]):
+                    val = df[col_name].mean()
+                    kpi_cols[i % 4].markdown(f"""
+                    <div class='kpi-card' style='border: 1px solid {t['border']}; padding: 10px; border-radius: 12px;'>
+                        <div class='kpi-label'>Avg {col_name}</div>
+                        <div class='kpi-value'>{val:,.2f}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+        
+            st.write("---")
+            d_col1, d_col2 = st.columns(2)
+        with d_col1:
+            if stats['cols_info']['categorical']:
+                cat_col = st.selectbox("Categorical Breakdown", stats['cols_info']['categorical'], key='dash_cat')
+                st.bar_chart(df[cat_col].value_counts())
+            else:
+                st.info("No categorical columns detected.")
+        with d_col2:
+            if stats['cols_info']['numeric']:
+                num_col = st.selectbox("Numeric Density Breakdown", stats['cols_info']['numeric'], key='dash_num')
+                st.area_chart(df[num_col].value_counts().sort_index())
+            else:
+                st.info("No numeric columns detected.")
+        
+            st.write("---")
+            if st.button("📄 Generate Comprehensive Report", use_container_width=True):
+                st.session_state.visuals = ml_utils.get_visualizations(df, theme=st.session_state.theme)
+                visuals = st.session_state.visuals
+                report_html = ml_utils.generate_html_report(
+                df, 
+                stats, 
+                visuals if visuals else {}, 
+                st.session_state.ml_results
+                )
+                st.download_button(
+                label="📥 Download Data Report (HTML)",
+                data=report_html,
+                file_name=f"Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                mime="text/html",
+                use_container_width=True
+            )
+                st.markdown("</div>", unsafe_allow_html=True)
+        # Footer
+        st.markdown(f"<div style='text-align: center; color: {t['muted']}; font-size: 0.8rem; margin-top: 4rem; padding-bottom: 2rem;'>Insight Flow v5.5 | Professional Data Science Suite | </div>", unsafe_allow_html=True)
