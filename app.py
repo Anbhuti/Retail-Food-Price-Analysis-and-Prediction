@@ -332,9 +332,27 @@ if st.session_state.master_df is not None:
                     if feat in meta['cat_mappings']:
                         user_inputs[feat] = st.selectbox(f"{feat}", meta['cat_mappings'][feat])
                     elif feat in meta['date_cols']:
-                        # Default to current date if possible
+                        # Default to a date, but enforce years > 2025 (min date = 2026-01-01)
+                        min_date = datetime(2026, 1, 1).date()
                         default_date = pd.to_datetime(res['X_sample'][feat])
-                        user_inputs[feat] = st.date_input(f"{feat}", value=default_date)
+                        # Normalize to python date
+                        try:
+                            default_date = default_date.date()
+                        except Exception:
+                            pass
+                        # If the sample/default date is earlier than min_date, use min_date
+                        if isinstance(default_date, (pd.Timestamp,)):
+                            # fallback: convert Timestamp to date
+                            default_date = pd.to_datetime(default_date).date()
+                        if not isinstance(default_date, type(min_date)):
+                            try:
+                                default_date = pd.to_datetime(default_date).date()
+                            except Exception:
+                                default_date = min_date
+                        if default_date < min_date:
+                            default_date = min_date
+
+                        user_inputs[feat] = st.date_input(f"{feat}", value=default_date, min_value=min_date)
                     else:
                         user_inputs[feat] = st.number_input(f"{feat}", value=float(res['X_sample'][feat]), format="%.4f")
             
